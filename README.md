@@ -26,7 +26,7 @@ By incorporating the **Segment Anything Model 2 (SAM2)** backbone, our framework
 The resulting as-damaged BIM model provides efficient recording, visualization, and risk-level representation — substantially enhancing the automation and efficiency of tunnel monitoring and management workflows.
 
 <p align="center">
-  <img src="./resources/methodology.pdf" alt="Methodology Overview" width="80%">
+  <img src="./resources/UHR.png" alt="Methodology Overview" width="80%">
 </p>
 
 <p align="center">

@@ -21,7 +21,7 @@ At its core lies a **flexible panoptic segmentation architecture** that integrat
 - Support for **images exceeding 6K resolution**  
 - Accurate detection of **tunnel components** and **five main damage types**
 
-By incorporating the **Segment Anything Model 2 (SAM2)** backbone, our framework achieves a significant performance boost, raising **Panoptic Quality (PQ)** from **52.4** to **56.99**.
+By incorporating the **Segment Anything Model 2 (SAM2)** backbone, our framework achieves a significant performance boost, raising **Panoptic Quality (PQ)** from **53.14** to **56.99**.
 
 The resulting as-damaged BIM model provides efficient recording, visualization, and risk-level representation — substantially enhancing the automation and efficiency of tunnel monitoring and management workflows.
 
@@ -58,7 +58,7 @@ This implementation is built upon the **[MMDetection](https://github.com/open-mm
 - Support for **EfficientViT** and **SAM2** backbones  
 - **Chunk-based inference** for large-scale image handling  
 - Generation of **as-damaged BIM models** with annotated defects  
-- Improved **panoptic segmentation performance (PQ +4.59)**  
+- Improved **panoptic segmentation performance (PQ +3.85)**  
 
 ---
 

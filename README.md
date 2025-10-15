@@ -62,6 +62,6 @@ This implementation is built upon the **[MMDetection](https://github.com/open-mm
 
 ---
 
-## 📊 Citation
+## 📊 Progress
 
-The paper is still under review
+15th Oct, 2025: Code release

@@ -25,6 +25,14 @@ By incorporating the **Segment Anything Model 2 (SAM2)** backbone, our framework
 
 The resulting as-damaged BIM model provides efficient recording, visualization, and risk-level representation — substantially enhancing the automation and efficiency of tunnel monitoring and management workflows.
 
+<p align="center">
+  <img src="./resources/methodology.pdf" alt="Methodology Overview" width="80%">
+</p>
+
+<p align="center">
+  <em>Figure 1. Overview of the proposed framework for tunnel panoptic segmentation and as-damaged BIM generation.</em>
+</p>
+
 ---
 
 ## ⚙️ Repository Structure and Key Modifications

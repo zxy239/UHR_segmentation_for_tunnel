@@ -1,0 +1,1403 @@
+{
+  "Uuid": "4bd9ae75-ad00-4abe-a188-b515d7945e2b",
+  "IsCustomNode": false,
+  "Description": "",
+  "Name": "things",
+  "ElementResolver": {
+    "ResolutionMap": {
+      "Point": {
+        "Key": "Autodesk.DesignScript.Geometry.Point",
+        "Value": "ProtoGeometry.dll"
+      },
+      "Vector": {
+        "Key": "Autodesk.DesignScript.Geometry.Vector",
+        "Value": "ProtoGeometry.dll"
+      }
+    }
+  },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "CoreNodeModels.Input.Filename, CoreNodeModels",
+      "Id": "3a3f0133af7c46ec8bfd148092d88b80",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "0145827746cc4974a04ba5d1d5d9844b",
+          "Name": "",
+          "Description": "文件路径",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "允许选择系统上某个文件以返回其文件路径",
+      "HintPath": "D:\\OneDrive - Xi'an Jiaotong-Liverpool University\\Python\\tunnel_uhr\\as-damaged BIM\\3d_point_info_with_zones.csv",
+      "InputValue": ".\\3d_point_info_with_zones.csv"
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "# Import required modules\r\nimport sys\r\nimport clr\r\nclr.AddReference('ProtoGeometry')\r\nfrom Autodesk.DesignScript.Geometry import *\r\n\r\n# (Adjust this path to your environment)\r\nsys.path.append(r'D:\\Anaconda\\envs\\Dynamo3912\\Lib\\site-packages')\r\n\r\nimport pandas as pd\r\n\r\n# -------------------------------\r\n# 1. Load CSV data\r\n# -------------------------------\r\ndata = pd.read_csv(IN[0])\r\ndf = pd.DataFrame(data)\r\n\r\n# -------------------------------\r\n# 2. Group by 'instance_id'\r\n# -------------------------------\r\n# Select relevant columns for processing\r\ngrouped_data = df.groupby('instance_id')[['x', 'y', 'z', 'category_name', 'risk', 'area_m2', 'zone']]\r\n\r\n# Convert each group to a list\r\ngrouped_lists = [group.values.tolist() for name, group in grouped_data]\r\n\r\n# -------------------------------\r\n# 3. Generate point sets for Dynamo\r\n# -------------------------------\r\npoint_sets = []\r\nfor group in grouped_lists:\r\n    # Multiply coordinates by 1000 to convert meters to millimeters (Dynamo units)\r\n    points = [Point.ByCoordinates(row[0]*1000, row[1]*1000, row[2]*1000) for row in group]\r\n    point_sets.append(points)\r\n\r\n# -------------------------------\r\n# 4. Extract additional properties\r\n# -------------------------------\r\n# Category / Type of defect\r\nType = [group[0][3] for group in grouped_lists]\r\n\r\n# Risk level\r\nRisk = [group[0][4] for group in grouped_lists]\r\n\r\n# Area of the defect\r\nArea = [group[0][5] for group in grouped_lists]\r\n\r\n# Instance ID\r\nInstanceID = list(grouped_data.groups.keys())\r\n\r\n# Zone ('c' = center, 'l' = left, 'r' = right)\r\nZone = [group[0][6] for group in grouped_lists]\r\n\r\n# -------------------------------\r\n# 5. Output\r\n# -------------------------------\r\n# Outputs a tuple of lists:\r\n# point_sets: 3D point sets for each instance\r\n# Type: category name for each instance\r\n# Risk: risk level for each instance\r\n# Area: area of each instance\r\n# InstanceID: unique IDs\r\n# Zone: zone of each instance\r\nOUT = point_sets, Type, Risk, Area, InstanceID, Zone\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "6c411d31890349968ece4ed88e482030",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "767ca8e14c044f81ac94382dd024234d",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "b9c587d0ae704108b46a67d7c0c9be8e",
+          "Name": "OUT",
+          "Description": "Python 脚本结果",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "运行嵌入 Python 脚本。"
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nclr.AddReference('ProtoGeometry')\r\nfrom Autodesk.DesignScript.Geometry import *\r\nimport math\r\n\r\n# --------------------------\r\n# Parameters\r\n# --------------------------\r\nr = 5050          # Inner radius (mm)\r\ns = 18660         # Arc length (mm)\r\nL = 20000         # Tunnel length (mm)\r\n\r\n# --------------------------\r\n# Calculate central angle of the arc\r\n# --------------------------\r\ntheta = s / r  # radians\r\n\r\n# --------------------------\r\n# Define key points for the tunnel cross-section\r\n# --------------------------\r\n# Left end as origin\r\nstart_pt = Point.ByCoordinates(0, 0, 0)\r\n\r\n# Right end (on same horizontal plane)\r\nend_pt = Point.ByCoordinates(2 * r * math.sin(theta / 2), 0, 0)\r\n\r\n# Top midpoint of the arc\r\ntop_pt = Point.ByCoordinates(\r\n    r * math.sin(theta / 2), 0, r * (1 - math.cos(theta / 2))\r\n)\r\n\r\n# --------------------------\r\n# Create the arc for the tunnel cross-section\r\n# --------------------------\r\narc = Arc.ByThreePoints(start_pt, top_pt, end_pt)\r\n\r\n# --------------------------\r\n# Extrude the arc along Y-axis to create tunnel surface\r\n# --------------------------\r\ndirY = Vector.ByCoordinates(0, 1, 0)\r\ntunnel_surface = arc.Extrude(dirY, L)\r\n\r\n# Output: the 3D tunnel surface\r\nOUT = tunnel_surface\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "9e92305ec42243d3bfb8090beb9e6745",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "137256dc8d6945769c61eb604e167442",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "ef44443b7e4645d9878c3573e2400c38",
+          "Name": "OUT",
+          "Description": "Python 脚本结果",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "运行嵌入 Python 脚本。"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "Id": "052e937b2e3d45fbb11d1b40cbaa7847",
+      "NodeType": "CodeBlockNode",
+      "Inputs": [
+        {
+          "Id": "1cbf8db7823a4dc6866e79fd4dbcc0b0",
+          "Name": "Type",
+          "Description": "Type",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "3d4ddd1b22894c92bb9f824f4c1f26c7",
+          "Name": "Risk",
+          "Description": "Risk",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "5212e5b9e71148e9aa064da18cba8887",
+          "Name": "Area",
+          "Description": "Area",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "64b0b7c6ca6641ab9d78382217975a29",
+          "Name": "InstanceID",
+          "Description": "InstanceID",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "ddcb23c23f454cafa8f9607721fddaa4",
+          "Name": "",
+          "Description": "行 1 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "f0c1ce8dc3394e799894f93dd10c342d",
+          "Name": "",
+          "Description": "行 2 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "ed7b88bb5e714ad5862998317d93d77c",
+          "Name": "",
+          "Description": "行 3 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "d104a2b7ace3403680796f0e0594025a",
+          "Name": "",
+          "Description": "行 4 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "允许直接编写 DesignScript 代码",
+      "Code": "Type[1];\nRisk[2];\nArea[3];\nInstanceID[4];"
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "# -*- coding: utf-8 -*-\r\nimport sys\r\nimport clr\r\nclr.AddReference('ProtoGeometry')\r\nfrom Autodesk.DesignScript.Geometry import *\r\n\r\ndef generate_surface(points, direction_flag, tunnel_surface, offset_distance=10000, thickness=200, center_x=4850):\r\n    \"\"\"\r\n    Generate a single defect solid along the tunnel surface.\r\n    \r\n    Args:\r\n        points (list): List of Autodesk.DesignScript.Geometry.Point (3D) representing defect boundary.\r\n        direction_flag (str): 'c' (top), 'l' (left), or 'r' (right).\r\n        tunnel_surface (Surface): Inner surface of the tunnel.\r\n        offset_distance (float): Distance to construct the cutting surface.\r\n        thickness (float): Thickness of the final solid (mm).\r\n        center_x (float): X-coordinate of tunnel center for side projections.\r\n        \r\n    Returns:\r\n        Solid: Generated solid defect. Returns None if failed.\r\n    \"\"\"\r\n    intersection_curves = []\r\n    \r\n    n = len(points)\r\n    if n < 2:\r\n        return None\r\n    \r\n    # Construct a rectangle for each consecutive pair of points\r\n    for i in range(n):\r\n        p_i = points[i]\r\n        p_next = points[(i + 1) % n]\r\n        \r\n        # Top defect 'c': vertical in XY plane\r\n        if direction_flag == 'c':\r\n            a = Point.ByCoordinates(p_i.X, p_i.Y, 0)\r\n            b = Point.ByCoordinates(p_next.X, p_next.Y, 0)\r\n            c = Point.ByCoordinates(p_next.X, p_next.Y, offset_distance)\r\n            d = Point.ByCoordinates(p_i.X, p_i.Y, offset_distance)\r\n        \r\n        # Left defect 'l': vertical in YZ plane, extending -X\r\n        elif direction_flag == 'l':\r\n            a = Point.ByCoordinates(center_x, p_i.Y, p_i.Z)\r\n            b = Point.ByCoordinates(center_x, p_next.Y, p_next.Z)\r\n            c = Point.ByCoordinates(center_x - offset_distance, p_next.Y, p_next.Z)\r\n            d = Point.ByCoordinates(center_x - offset_distance, p_i.Y, p_i.Z)\r\n        \r\n        # Right defect 'r': vertical in YZ plane, extending +X\r\n        elif direction_flag == 'r':\r\n            a = Point.ByCoordinates(center_x, p_i.Y, p_i.Z)\r\n            b = Point.ByCoordinates(center_x, p_next.Y, p_next.Z)\r\n            c = Point.ByCoordinates(center_x + offset_distance, p_next.Y, p_next.Z)\r\n            d = Point.ByCoordinates(center_x + offset_distance, p_i.Y, p_i.Z)\r\n        else:\r\n            return None\r\n        \r\n        # Create rectangle surface\r\n        rect = Rectangle.ByCornerPoints([a, b, c, d])\r\n        rect_surface = Surface.ByPatch(rect)\r\n        \r\n        # Intersect with tunnel surface\r\n        inter = rect_surface.Intersect(tunnel_surface)\r\n        if inter and len(inter) > 0:\r\n            for item in inter:\r\n                if item is not None:\r\n                    intersection_curves.append(item)\r\n\r\n    # Join curves and thicken\r\n    poly = PolyCurve.ByJoinedCurves(intersection_curves)\r\n    patch = Surface.ByPatch(poly)\r\n    thickened = Surface.Thicken(patch, thickness)\r\n    \r\n    return thickened\r\n\r\n# -----------------------------\r\n# Main Program\r\n# -----------------------------\r\n# Input ports:\r\n# IN[0][0]: points_sets (nested list of points)\r\n# IN[0][5]: side_tags (direction flags corresponding to points: 'c'/'l'/'r')\r\n# IN[1]:    tunnel_surface (inner tunnel surface)\r\n\r\npoints_sets = IN[0][0]\r\nside_tags = IN[0][5]\r\ntunnel_surface = IN[1]\r\n\r\n# Parameters\r\nOFFSET = 10000\r\nTHICKNESS = 100\r\nCENTER_X = 4850\r\n\r\nsurface_defects_elements = []\r\n\r\nfor pts, flag in zip(points_sets, side_tags):\r\n    # Validate input\r\n    if pts is None or len(pts) < 2:\r\n        surface_defects_elements.append(None)\r\n        continue\r\n    \r\n    # Generate solid and handle exceptions\r\n    try:\r\n        solid = generate_surface(pts, flag, tunnel_surface, offset_distance=OFFSET, thickness=THICKNESS, center_x=CENTER_X)\r\n        surface_defects_elements.append(solid)\r\n    except:\r\n        surface_defects_elements.append(None)\r\n\r\n# Output: list of defect solids\r\nOUT = surface_defects_elements\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "b1b6e5dfa71d497fb49fa4c741c2634e",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "19488a5a994944f183efdfa823cfa896",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "9f62376662714482999b1e25534d0586",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "5c3772123f9949f7b269d27e1834507d",
+          "Name": "OUT",
+          "Description": "Python 脚本结果",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "运行嵌入 Python 脚本。"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CustomNodes.Function, DynamoCore",
+      "FunctionSignature": "ecdb3729-0de2-4c50-bdca-28fe881027a2",
+      "FunctionType": "Graph",
+      "Id": "84039fd6fdb640938785a345319da076",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "e3e67a5747224dbf85f0f0af902a2139",
+          "Name": "geometry",
+          "Description": "var[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "63d7f7de489541e58afbb66d91210583",
+          "Name": "familyTemplatePath",
+          "Description": "var",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "e499a95d6a50479fa6a716347371f2c0",
+          "Name": "familyName",
+          "Description": "var[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "42e464cdfba14cc681c647427d952423",
+          "Name": "category",
+          "Description": "var[]\n默认值 : Revit.Elements.Category.ByName(\"OST_GenericModel\")",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "d63bd830c4d84309a749ef472f5c9700",
+          "Name": "materialName",
+          "Description": "var[]\n默认值 : null",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "7606302fafe4406eba87bf217420bf5d",
+          "Name": "isVoid",
+          "Description": "var[]\n默认值 : false",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "bc4fc5fd8d3d4dfa9c767fae11bae6b8",
+          "Name": "subcategoryName",
+          "Description": "var[]\n默认值 : null",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "024371724e264a36a017c6194927a19e",
+          "Name": "instance",
+          "Description": "返回值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "793d6c3f16cf443fabb2e7f94785d1eb",
+          "Name": "family",
+          "Description": "返回值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Auto",
+      "Description": "You must provide a valid family template path that will be used for all input geometry objects. The project units(and not the templates) will be used to determine the size of the output geometry.\r\nThe provided category will be used only if the family template supports it. If not, the default template category will be used instead.\r\nLikewise, the family material(provided as a string) will be set only if a material with that name exists in the template. If not, the default material will be used instead (\"By Category\").\r\nFor void cuts, the material settings will be ignored.\r\nThe Subcategory name is an optional input. If you'd like to skip assigning a Subcategory to any new instance, simply use null.\r\nThe node expects a unique family name for each geometry object. The rest of the input lists will be processed as if the node lacing is set to longest."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.Filename, CoreNodeModels",
+      "Id": "784bccf5b5704447bfa8151763a71890",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "2b9a7c54045e40be8d2caefbf9ffdef2",
+          "Name": "",
+          "Description": "文件路径",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "允许选择系统上某个文件以返回其文件路径",
+      "HintPath": "D:\\OneDrive - Xi'an Jiaotong-Liverpool University\\Python\\tunnel_uhr\\as-damaged BIM\\Metric Generic Model.rft",
+      "InputValue": ".\\Metric Generic Model.rft"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "90a340bdf118498a85cf6fabdf30d86c",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "e56d080e8edc414ab82f7ea75bcf6694",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "ee08270c11e3497e8d85661222f77921",
+          "Name": "parameterName",
+          "Description": "要设置的参数的名称。\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "476fd4169e3a4fd285a9745d2afec730",
+          "Name": "value",
+          "Description": "数值。\n\nvar",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "1e4cd7ddd8824d5fb7b7feda7c3d6a39",
+          "Name": "Element",
+          "Description": "Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "FunctionSignature": "Revit.Elements.Element.SetParameterByName@string,var",
+      "Replication": "Auto",
+      "Description": "设置一个图元参数。\n\nElement.SetParameterByName (parameterName: string, value: var): Element"
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "# Load the Python Standard and DesignScript Libraries\r\nimport sys\r\nimport clr\r\nclr.AddReference('ProtoGeometry')\r\nfrom Autodesk.DesignScript.Geometry import *\r\n\r\n# The inputs to this node are stored as a list in the IN variables.\r\n# Inputs\r\ninstance_ids = IN[0]          # list of instance IDs\r\ncategory_names = IN[1]        # list of category names\r\n\r\n# Check that the lengths match\r\nif len(instance_ids) != len(category_names):\r\n    raise Exception(\"The lengths of instance_ids and category_names do not match\")\r\n\r\n# Generate a list of family names\r\nfamily_names = []\r\n\r\nfor cat, id in zip(category_names, instance_ids):\r\n    name = \"{}_{}\".format(cat, id)  # Concatenate category + \"_\" + instance_id\r\n    family_names.append(name)\r\n\r\n# Output\r\nOUT = family_names\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "af8567721ba641f69d6222de90553899",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "2cad6c2f1e694200a29fec8303bd7032",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "9cff279514c84e90a5384508280cdc77",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "e3d60663ae1f44b88b05a1921ddec8be",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "运行嵌入 Python 脚本。"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "Id": "338c0a7698274f068d9eaab6ec10da6e",
+      "NodeType": "CodeBlockNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "95e62686a9cd457599beae87c39442e4",
+          "Name": "",
+          "Description": "行 1 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "允许直接编写 DesignScript 代码",
+      "Code": "\"DamageType\";"
+    },
+    {
+      "ConcreteType": "DSRevitNodesUI.Categories, DSRevitNodesUI",
+      "SelectedIndex": 54,
+      "SelectedString": "OST_GenericModel",
+      "Id": "225c5149f872472e8c6ade24e256913c",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "77ca44ff1783419aa5e6d193d3bda485",
+          "Name": "Category",
+          "Description": "The selected Category.",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "所有内置类别。"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "8f33cd8f698d46c3a4de686102e2f143",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "6ab6ba2bbc0e4b71bb8eff258d95194a",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "6d826759368a462d94e268bd4b0fafd3",
+          "Name": "parameterName",
+          "Description": "要设置的参数的名称。\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "09e56bcf41ca40048c8d3663dda3feae",
+          "Name": "value",
+          "Description": "数值。\n\nvar",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "5c9a09faea664d2d8d21bde382127b3e",
+          "Name": "Element",
+          "Description": "Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "FunctionSignature": "Revit.Elements.Element.SetParameterByName@string,var",
+      "Replication": "Auto",
+      "Description": "设置一个图元参数。\n\nElement.SetParameterByName (parameterName: string, value: var): Element"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "Id": "05f64f78301945e0a5659dab26a17c07",
+      "NodeType": "CodeBlockNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "11164dcbf3dd43a7b0c28827d50bba94",
+          "Name": "",
+          "Description": "行 1 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "允许直接编写 DesignScript 代码",
+      "Code": "\"InstanceID\";"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "Id": "705f1a96ce904c008cd9db1122b4ee70",
+      "NodeType": "CodeBlockNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "394cf9d16d8b47709977a291a1465294",
+          "Name": "",
+          "Description": "行 1 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "允许直接编写 DesignScript 代码",
+      "Code": "\"RiskLevel\";"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "Id": "1e27847756dd449589c806e022408019",
+      "NodeType": "CodeBlockNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "10685908d2db4102ad4194f41870df9d",
+          "Name": "",
+          "Description": "行 1 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "允许直接编写 DesignScript 代码",
+      "Code": "\"DamageArea(m2)\";"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "5f8d254689d248f1891e132eadb8eb25",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "8bf7ebf767314ac9b997cabf9d57fa95",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "5787144f372c477e89cea9e23235dc6b",
+          "Name": "parameterName",
+          "Description": "要设置的参数的名称。\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "18c4269294354603bd2f9a665f7a3172",
+          "Name": "value",
+          "Description": "数值。\n\nvar",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "83f26a8ad34945aeb329c15560e80db8",
+          "Name": "Element",
+          "Description": "Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "FunctionSignature": "Revit.Elements.Element.SetParameterByName@string,var",
+      "Replication": "Auto",
+      "Description": "设置一个图元参数。\n\nElement.SetParameterByName (parameterName: string, value: var): Element"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "46c4e0553c0d4f2c8331d11c04e7d4f1",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "c7d8eca048474c64a1d758e78647fd6e",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "472ad0a61b4244a08b8634682efa5721",
+          "Name": "parameterName",
+          "Description": "要设置的参数的名称。\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "6a74af2b98924b638903e39d6c0050e5",
+          "Name": "value",
+          "Description": "数值。\n\nvar",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "0b6950e4bfa44788b78451f3e6d831c9",
+          "Name": "Element",
+          "Description": "Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "FunctionSignature": "Revit.Elements.Element.SetParameterByName@string,var",
+      "Replication": "Auto",
+      "Description": "设置一个图元参数。\n\nElement.SetParameterByName (parameterName: string, value: var): Element"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.ColorRange, CoreNodeModels",
+      "Id": "c0e2d9174afb4770b5f555bb0c6ab24b",
+      "NodeType": "ExtensionNode",
+      "Inputs": [
+        {
+          "Id": "144b0ba9aadc452dbb99bfbdcec739b8",
+          "Name": "colors",
+          "Description": "要包含在范围内的颜色列表",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "279db6a42ed841389cc45330840eafa2",
+          "Name": "indices",
+          "Description": "介于 0.0 和 1.0 之间的值列表，这些值沿范围定位输入颜色",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "d2ccadcc22714a28a342a04ac01c014f",
+          "Name": "value",
+          "Description": "介于 0.0 和 1.0 之间的值列表。这些值定义沿颜色范围选择的颜色以创建颜色列表。",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "0c3037e903c54b2d9fc9ba66e7086a97",
+          "Name": "color",
+          "Description": "选定的颜色",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "返回给定颜色范围中的颜色"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "18d262922c104941902f24978d0d17bf",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "35d7c9bdfa2b4b4ab738ca72210e5c62",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "b681fa35c7b24cea8bea299bbf680d33",
+          "Name": "color",
+          "Description": "将颜色应用到图元的实体填充。\n\nColor",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "d7fd715afe354712a25e93e6b30935aa",
+          "Name": "Element",
+          "Description": "Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "FunctionSignature": "Revit.Elements.Element.OverrideColorInView@DSCore.Color",
+      "Replication": "Auto",
+      "Description": "在活动视图中覆盖图元的颜色。\n\nElement.OverrideColorInView (color: Color): Element"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "eafd71fef02149dfa1c1394ee30b188e",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "1b8f3e5600de4df48a5f94c4bc03ffff",
+          "Name": "numbers",
+          "Description": "要调整范围的数字列表。\n\ndouble[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "68450d4543c44f578fcba8d964c68a9d",
+          "Name": "newMin",
+          "Description": "新的范围最小值。\n\ndouble\n默认值 : 0",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "ed8a24a1e6a74cd5af73c0044d06d97d",
+          "Name": "newMax",
+          "Description": "新的范围最大值\n\ndouble\n默认值 : 1",
+          "UsingDefaultValue": true,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "46bd4a00fdf84c82b31513f0355bcaf2",
+          "Name": "list",
+          "Description": "重新映射到新范围的列表。",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "FunctionSignature": "DSCore.Math.RemapRange@double[],double,double",
+      "Replication": "Auto",
+      "Description": "调整数字列表的范围，同时保留 分布率。\n\nMath.RemapRange (numbers: double[], newMin: double = 0, newMax: double = 1): var[]..[]"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.CodeBlockNodeModel, DynamoCore",
+      "Id": "eb929adebb1b4f38a5da4538e7a44d90",
+      "NodeType": "CodeBlockNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "25f77fb2d23a4fe6becfa6f619f58303",
+          "Name": "",
+          "Description": "行 1 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "a53a7cfe33ac4ab9aa986deeee0f01d8",
+          "Name": "",
+          "Description": "行 2 中的表达式值",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "允许直接编写 DesignScript 代码",
+      "Code": "0;\n1;"
+    },
+    {
+      "ConcreteType": "Dynamo.Graph.Nodes.ZeroTouch.DSFunction, DynamoCore",
+      "Id": "674bda44685646cbb61f3f46f20f7159",
+      "NodeType": "FunctionNode",
+      "Inputs": [
+        {
+          "Id": "2883298c2160432587ce03fa871be280",
+          "Name": "element",
+          "Description": "Revit.Elements.Element",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "b52a5c182d284f1d8de196d2812c7dd3",
+          "Name": "parameterName",
+          "Description": "要获取其值的参数的名称。\n\nstring",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "af0f99a613924537a7be291672ac5c2b",
+          "Name": "var[]..[]",
+          "Description": "var[]..[]",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "FunctionSignature": "Revit.Elements.Element.GetParameterValueByName@string",
+      "Replication": "Auto",
+      "Description": "获取一个图元参数的值。\n\nElement.GetParameterValueByName (parameterName: string): var[]..[]"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "Id": "dd5bc13832e54ffc92df615623c3adf7",
+      "NodeType": "StringInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "af50c59124df4f6caaab0431cc188915",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "创建字符串。",
+      "InputValue": "RiskLevel"
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "0145827746cc4974a04ba5d1d5d9844b",
+      "End": "767ca8e14c044f81ac94382dd024234d",
+      "Id": "31f7eb4b9e9447e08512e8695d7e4a60",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "b9c587d0ae704108b46a67d7c0c9be8e",
+      "End": "1cbf8db7823a4dc6866e79fd4dbcc0b0",
+      "Id": "8a0a4e2734f54c3a8ec03ed86e6bf4cf",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "b9c587d0ae704108b46a67d7c0c9be8e",
+      "End": "3d4ddd1b22894c92bb9f824f4c1f26c7",
+      "Id": "c2b9b747d1a74ea790929787088bd696",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "b9c587d0ae704108b46a67d7c0c9be8e",
+      "End": "5212e5b9e71148e9aa064da18cba8887",
+      "Id": "601c87a9c2064099b9797a9764a6f972",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "b9c587d0ae704108b46a67d7c0c9be8e",
+      "End": "64b0b7c6ca6641ab9d78382217975a29",
+      "Id": "2669724fc46b4758b90cc697a8844224",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "b9c587d0ae704108b46a67d7c0c9be8e",
+      "End": "19488a5a994944f183efdfa823cfa896",
+      "Id": "251f9db2ceff4a12944ce919c7ab8850",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "ef44443b7e4645d9878c3573e2400c38",
+      "End": "9f62376662714482999b1e25534d0586",
+      "Id": "1d82902e858d401096da241436ee37b5",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "ddcb23c23f454cafa8f9607721fddaa4",
+      "End": "9cff279514c84e90a5384508280cdc77",
+      "Id": "ffc6112e3a2c4cc0a12534f2ed446cc0",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "ddcb23c23f454cafa8f9607721fddaa4",
+      "End": "476fd4169e3a4fd285a9745d2afec730",
+      "Id": "75530e0bb38a46d686d9984ff5a96b2b",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "f0c1ce8dc3394e799894f93dd10c342d",
+      "End": "18c4269294354603bd2f9a665f7a3172",
+      "Id": "5428f4caf20042f9ba9bcefbc14ccee1",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "ed7b88bb5e714ad5862998317d93d77c",
+      "End": "6a74af2b98924b638903e39d6c0050e5",
+      "Id": "fea8ad12733648a99c61f281da8374a7",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "d104a2b7ace3403680796f0e0594025a",
+      "End": "2cad6c2f1e694200a29fec8303bd7032",
+      "Id": "71decf55a9cb4da3b790d4887aff234c",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "d104a2b7ace3403680796f0e0594025a",
+      "End": "09e56bcf41ca40048c8d3663dda3feae",
+      "Id": "5ed716bfd88b4b3a89dfd33f890d6df4",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "5c3772123f9949f7b269d27e1834507d",
+      "End": "e3e67a5747224dbf85f0f0af902a2139",
+      "Id": "de4f1bdec05d46aa9052621a379cbd24",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "024371724e264a36a017c6194927a19e",
+      "End": "e56d080e8edc414ab82f7ea75bcf6694",
+      "Id": "c8f8bc7b56f04ed5bb8f3884bc0088e3",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "2b9a7c54045e40be8d2caefbf9ffdef2",
+      "End": "63d7f7de489541e58afbb66d91210583",
+      "Id": "f1a2a3f71d894603b8c3a0fa6b8e928b",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "1e4cd7ddd8824d5fb7b7feda7c3d6a39",
+      "End": "6ab6ba2bbc0e4b71bb8eff258d95194a",
+      "Id": "16aef000549145f885996129a1b70cc0",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "e3d60663ae1f44b88b05a1921ddec8be",
+      "End": "e499a95d6a50479fa6a716347371f2c0",
+      "Id": "06c49656e16d4586843932f1c5af401e",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "95e62686a9cd457599beae87c39442e4",
+      "End": "ee08270c11e3497e8d85661222f77921",
+      "Id": "90f4da04e18f400c83de817e19965b99",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "77ca44ff1783419aa5e6d193d3bda485",
+      "End": "42e464cdfba14cc681c647427d952423",
+      "Id": "3a79931a17874040a2fa0b02c5e9ad9a",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "5c9a09faea664d2d8d21bde382127b3e",
+      "End": "8bf7ebf767314ac9b997cabf9d57fa95",
+      "Id": "7b7fa6a0e4a941bbab2f43793176ea1b",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "11164dcbf3dd43a7b0c28827d50bba94",
+      "End": "6d826759368a462d94e268bd4b0fafd3",
+      "Id": "4ba4c14ba4fe438a967c8eac7534c3f9",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "394cf9d16d8b47709977a291a1465294",
+      "End": "5787144f372c477e89cea9e23235dc6b",
+      "Id": "6b97891861c241a19e86a34fb1f2e50f",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "10685908d2db4102ad4194f41870df9d",
+      "End": "472ad0a61b4244a08b8634682efa5721",
+      "Id": "2c65d5b1dfad4d3484497068f9189427",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "83f26a8ad34945aeb329c15560e80db8",
+      "End": "c7d8eca048474c64a1d758e78647fd6e",
+      "Id": "b4375d83bef74ce69008343ba3ab43e3",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "0b6950e4bfa44788b78451f3e6d831c9",
+      "End": "2883298c2160432587ce03fa871be280",
+      "Id": "427b5287a2c14963a874044f765f542a",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "0b6950e4bfa44788b78451f3e6d831c9",
+      "End": "35d7c9bdfa2b4b4ab738ca72210e5c62",
+      "Id": "8a46894f14514dc3ab4ed077ec9ffa81",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "0c3037e903c54b2d9fc9ba66e7086a97",
+      "End": "b681fa35c7b24cea8bea299bbf680d33",
+      "Id": "cefc1a24ab7b484f839d4987a96f89fc",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "46bd4a00fdf84c82b31513f0355bcaf2",
+      "End": "d2ccadcc22714a28a342a04ac01c014f",
+      "Id": "d15fddc9b0364694bc900a667fff5720",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "25f77fb2d23a4fe6becfa6f619f58303",
+      "End": "68450d4543c44f578fcba8d964c68a9d",
+      "Id": "67c3398d045c442388678363723115cd",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "a53a7cfe33ac4ab9aa986deeee0f01d8",
+      "End": "ed8a24a1e6a74cd5af73c0044d06d97d",
+      "Id": "956069c320ab4da0893f7700f56e34ba",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "af0f99a613924537a7be291672ac5c2b",
+      "End": "1b8f3e5600de4df48a5f94c4bc03ffff",
+      "Id": "3686294be32d4d2f801b87a2ad19c653",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "af50c59124df4f6caaab0431cc188915",
+      "End": "b52a5c182d284f1d8de196d2812c7dd3",
+      "Id": "eb8ce8dbf5464eb0b2a5ea265d61576a",
+      "IsHidden": "False"
+    }
+  ],
+  "Dependencies": [
+    "ecdb3729-0de2-4c50-bdca-28fe881027a2"
+  ],
+  "NodeLibraryDependencies": [
+    {
+      "Name": "spring nodes",
+      "Version": "210.1.1",
+      "ReferenceType": "Package",
+      "Nodes": [
+        "84039fd6fdb640938785a345319da076"
+      ]
+    }
+  ],
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [
+    {
+      "ExtensionGuid": "28992e1d-abb9-417f-8b1b-05e053bee670",
+      "Name": "特性",
+      "Version": "2.17",
+      "Data": {}
+    },
+    {
+      "ExtensionGuid": "DFBD9CC0-DB40-457A-939E-8C8555555A9D",
+      "Name": "Generative Design",
+      "Version": "4.0",
+      "Data": {}
+    }
+  ],
+  "Author": "",
+  "Linting": {
+    "activeLinter": "无",
+    "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a",
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 1.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "2.19.3.6394",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "背景预览(_B)",
+      "EyeX": 132.74238586425781,
+      "EyeY": 9755.2470703125,
+      "EyeZ": 11814.2939453125,
+      "LookX": -132.74238586425781,
+      "LookY": -9755.2470703125,
+      "LookZ": -11814.2939453125,
+      "UpX": -0.0051162382587790489,
+      "UpY": 0.889678418636322,
+      "UpZ": -0.45655912160873413
+    },
+    "ConnectorPins": [],
+    "NodeViews": [
+      {
+        "Id": "3a3f0133af7c46ec8bfd148092d88b80",
+        "Name": "File Path",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 2811.9321648733635,
+        "Y": 1413.6687760021673
+      },
+      {
+        "Id": "6c411d31890349968ece4ed88e482030",
+        "Name": "Read data",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": false,
+        "X": 3168.7259271671905,
+        "Y": 1418.1833334949094
+      },
+      {
+        "Id": "9e92305ec42243d3bfb8090beb9e6745",
+        "Name": "Tunnel surface",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3569.3994031123334,
+        "Y": 913.28669246091818
+      },
+      {
+        "Id": "052e937b2e3d45fbb11d1b40cbaa7847",
+        "Name": "Risk Value",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3465.7518635333558,
+        "Y": 1390.5709152618458
+      },
+      {
+        "Id": "b1b6e5dfa71d497fb49fa4c741c2634e",
+        "Name": "Damage solid generation",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": false,
+        "X": 3804.1776810703755,
+        "Y": 690.81344627233852
+      },
+      {
+        "Id": "84039fd6fdb640938785a345319da076",
+        "Name": "ꟿ FamilyInstance.ByGeometry",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4289.8186818318136,
+        "Y": 750.653879658795
+      },
+      {
+        "Id": "784bccf5b5704447bfa8151763a71890",
+        "Name": "File Path",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3816.8070916379443,
+        "Y": 888.22198332515768
+      },
+      {
+        "Id": "90a340bdf118498a85cf6fabdf30d86c",
+        "Name": "Element.SetParameterByName",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4292.5745280275978,
+        "Y": 1360.1087062300837
+      },
+      {
+        "Id": "af8567721ba641f69d6222de90553899",
+        "Name": "FamilyName Generation",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3812.1115248739848,
+        "Y": 1060.0268558915509
+      },
+      {
+        "Id": "338c0a7698274f068d9eaab6ec10da6e",
+        "Name": "Code Block",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4008.37491301898,
+        "Y": 1435.9970709727952
+      },
+      {
+        "Id": "225c5149f872472e8c6ade24e256913c",
+        "Name": "Categories",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3822.7885392109488,
+        "Y": 1244.7641417600375
+      },
+      {
+        "Id": "8f33cd8f698d46c3a4de686102e2f143",
+        "Name": "Element.SetParameterByName",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4296.0075506402454,
+        "Y": 1599.7082759656282
+      },
+      {
+        "Id": "05f64f78301945e0a5659dab26a17c07",
+        "Name": "Code Block",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4016.1488820263849,
+        "Y": 1625.2173993046265
+      },
+      {
+        "Id": "705f1a96ce904c008cd9db1122b4ee70",
+        "Name": "Code Block",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4009.425650463585,
+        "Y": 1865.7635854769173
+      },
+      {
+        "Id": "1e27847756dd449589c806e022408019",
+        "Name": "Code Block",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4003.7212099191192,
+        "Y": 2115.1530359998196
+      },
+      {
+        "Id": "5f8d254689d248f1891e132eadb8eb25",
+        "Name": "Element.SetParameterByName",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4298.8006952275309,
+        "Y": 1835.9521685440616
+      },
+      {
+        "Id": "46c4e0553c0d4f2c8331d11c04e7d4f1",
+        "Name": "Element.SetParameterByName",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4302.0791293588436,
+        "Y": 2084.9643563969075
+      },
+      {
+        "Id": "c0e2d9174afb4770b5f555bb0c6ab24b",
+        "Name": "Color Range",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 5683.4091924361046,
+        "Y": 2305.8516427977438
+      },
+      {
+        "Id": "18d262922c104941902f24978d0d17bf",
+        "Name": "Element.OverrideColorInView",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 5690.29902409715,
+        "Y": 2598.2732900969481
+      },
+      {
+        "Id": "eafd71fef02149dfa1c1394ee30b188e",
+        "Name": "Math.RemapRange",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 5408.7180349922583,
+        "Y": 2374.2017385874628
+      },
+      {
+        "Id": "eb929adebb1b4f38a5da4538e7a44d90",
+        "Name": "Code Block",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 5165.4502862691515,
+        "Y": 2597.6242332116749
+      },
+      {
+        "Id": "674bda44685646cbb61f3f46f20f7159",
+        "Name": "Element.GetParameterValueByName",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4900.62382362503,
+        "Y": 2378.53741798954
+      },
+      {
+        "Id": "dd5bc13832e54ffc92df615623c3adf7",
+        "Name": "String",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 4685.53275412742,
+        "Y": 2483.29340533486
+      }
+    ],
+    "Annotations": [],
+    "X": -431.09072380038174,
+    "Y": 46.18907521362587,
+    "Zoom": 0.32093085007497446
+  }
+}

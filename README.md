@@ -65,7 +65,10 @@ This implementation is built upon the **[MMDetection](https://github.com/open-mm
 ## 📝 As-damaged Tunnel BIM Model Generation
 
 - Include both things and stuff (simple projection in this case) in ./As-damaged BIM
-- 3D point projection (in Jupyter Notebook) and BIM element generation (in Dynamo)
+- 3D point projection (in Jupyter Notebook)
+- BIM element (IFC foramt) generation includes two approach:
+  - processed by Dynamo and import to Reivt and then output IFC format
+  - generated in pure Python environment (PyVista + IFCOpenshell)
 
 ---
 
